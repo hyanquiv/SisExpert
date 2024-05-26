@@ -1,0 +1,4 @@
+gripe:fiebre,tos,dolor_de_cabeza
+resfriado:toser,dolor_de_garganta,congestión_nasal
+covid19:fiebre,tos,dificultad_respiratoria,perdida_de_olfato
+alergia:estornudos,congestión_nasal,picazón
