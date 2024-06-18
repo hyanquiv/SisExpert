@@ -11,7 +11,7 @@ class DiagnosticoEnfermedad:
         self.master.geometry("800x600")
 
         self.enfermedades = self.cargar_base_conocimientos("base_conocimientos.txt")
-        self.sintomas_preguntados = []
+        self.sintomas_ingresados = []
         self.respuestas = {}
         self.enfermedad_diagnostico = None
 
@@ -26,26 +26,28 @@ class DiagnosticoEnfermedad:
         self.frame_grafico.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         # Crear los widgets en el frame de botones
-        self.label = tk.Label(self.frame_botones, text="¿Tiene alguno de estos síntomas?")
+        self.label = tk.Label(self.frame_botones, text="Ingrese sus síntomas (separados por comas):")
         self.label.pack(pady=10)
 
-        self.boton_si = tk.Button(self.frame_botones, text="Sí", command=lambda: self.responder('si'))
-        self.boton_si.pack(side=tk.LEFT, padx=20, pady=20)
+        self.entrada_sintomas = tk.Entry(self.frame_botones, width=50)
+        self.entrada_sintomas.pack(pady=10)
 
-        self.boton_no = tk.Button(self.frame_botones, text="No", command=lambda: self.responder('no'))
-        self.boton_no.pack(side=tk.RIGHT, padx=20, pady=20)
+        self.boton_diagnosticar = tk.Button(self.frame_botones, text="Diagnosticar", command=self.diagnosticar_manual)
+        self.boton_diagnosticar.pack(pady=20)
 
-        # Crear el área de texto para mostrar los síntomas
+        # Crear el área de texto para mostrar los síntomas y diagnóstico
         self.text_sintomas = tk.Text(self.frame_sintomas, wrap=tk.WORD, width=50)
         self.text_sintomas.pack(fill=tk.BOTH, expand=True)
-
-        self.sintoma_actual = None
-        self.proximo_sintoma()
 
         # Inicializar la figura del gráfico en el frame de gráficos
         self.fig, self.ax = plt.subplots(figsize=(6, 4))
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.frame_grafico)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        # Botón "Nuevo Diagnóstico" inicial, pero lo ocultamos
+        self.boton_nuevo_diagnostico = tk.Button(self.frame_botones, text="Nuevo Diagnóstico", command=self.nuevo_diagnostico)
+        self.boton_nuevo_diagnostico.pack(pady=20)
+        self.boton_nuevo_diagnostico.pack_forget()
 
     def cargar_base_conocimientos(self, archivo):
         enfermedades = defaultdict(list)
@@ -57,21 +59,17 @@ class DiagnosticoEnfermedad:
                 else:
                     print(f"Línea mal formateada ignorada: {linea}")
         return enfermedades
-    
-    def proximo_sintoma(self):
-        todos_sintomas = [sintoma for sintomas in self.enfermedades.values() for sintoma in sintomas]
-        sintomas_restantes = list(set(todos_sintomas) - set(self.sintomas_preguntados))
-        if sintomas_restantes:
-            self.sintoma_actual = sintomas_restantes[0]
-            self.label.config(text=f"¿Tiene {self.sintoma_actual.replace('_', ' ')}?")
-        else:
-            self.diagnosticar()
 
-    def responder(self, respuesta):
-        self.sintomas_preguntados.append(self.sintoma_actual)
-        self.respuestas[self.sintoma_actual] = respuesta
-        self.proximo_sintoma()
-        self.actualizar_grafico()
+    def diagnosticar_manual(self):
+        sintomas_usuario = self.entrada_sintomas.get().split(',')
+        sintomas_usuario = [sintoma.strip().replace(' ', '_') for sintoma in sintomas_usuario]
+        
+        if not sintomas_usuario or sintomas_usuario == ['']:
+            messagebox.showerror("Error", "Por favor, ingrese al menos un síntoma.")
+            return
+
+        self.respuestas = {sintoma: 'si' for sintoma in sintomas_usuario}
+        self.diagnosticar()
 
     def diagnosticar(self):
         self.puntajes = defaultdict(int)
@@ -99,12 +97,32 @@ class DiagnosticoEnfermedad:
             self.label.config(text="No se pudo determinar la enfermedad con los síntomas proporcionados.")
             self.text_sintomas.insert(tk.END, "No se pudo determinar la enfermedad con los síntomas proporcionados.\n")
 
-        self.boton_si.pack_forget()
-        self.boton_no.pack_forget()
-        tk.Button(self.frame_botones, text="Salir", command=self.master.quit).pack(pady=20)
+        self.boton_diagnosticar.config(state=tk.DISABLED)
+        self.boton_nuevo_diagnostico.pack()
+        self.actualizar_grafico()
+
+    def nuevo_diagnostico(self):
+        # Resetear variables y widgets
+        self.sintomas_ingresados = []
+        self.respuestas = {}
+        self.enfermedad_diagnostico = None
+        self.puntajes = {}
+
+        # Limpiar la entrada de texto y el área de texto de síntomas
+        self.entrada_sintomas.delete(0, tk.END)
+        self.text_sintomas.delete(1.0, tk.END)
+
+        # Restablecer el estado de los botones y la etiqueta
+        self.boton_diagnosticar.config(state=tk.NORMAL)
+        self.boton_nuevo_diagnostico.pack_forget()
+        self.label.config(text="Ingrese sus síntomas (separados por comas):")
+
+        # Limpiar el gráfico
+        self.ax.clear()
+        self.canvas.draw()
 
     def actualizar_grafico(self):
-        if not hasattr(self, 'puntajes'):
+        if not hasattr(self, 'puntajes') or not self.puntajes:
             return
 
         self.ax.clear()
@@ -121,3 +139,4 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = DiagnosticoEnfermedad(root)
     root.mainloop()
+
