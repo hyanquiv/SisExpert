@@ -4,6 +4,7 @@ from collections import defaultdict
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+
 class DiagnosticoEnfermedad:
     def __init__(self, master):
         self.master = master
@@ -45,7 +46,8 @@ class DiagnosticoEnfermedad:
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
         # Botón "Nuevo Diagnóstico" inicial, pero lo ocultamos
-        self.boton_nuevo_diagnostico = tk.Button(self.frame_botones, text="Nuevo Diagnóstico", command=self.nuevo_diagnostico)
+        self.boton_nuevo_diagnostico = tk.Button(self.frame_botones, text="Nuevo Diagnóstico",
+                                                 command=self.nuevo_diagnostico)
         self.boton_nuevo_diagnostico.pack(pady=20)
         self.boton_nuevo_diagnostico.pack_forget()
 
@@ -63,7 +65,7 @@ class DiagnosticoEnfermedad:
     def diagnosticar_manual(self):
         sintomas_usuario = self.entrada_sintomas.get().split(',')
         sintomas_usuario = [sintoma.strip().replace(' ', '_') for sintoma in sintomas_usuario]
-        
+
         if not sintomas_usuario or sintomas_usuario == ['']:
             messagebox.showerror("Error", "Por favor, ingrese al menos un síntoma.")
             return
@@ -72,27 +74,13 @@ class DiagnosticoEnfermedad:
         self.diagnosticar()
 
     def diagnosticar(self):
-        self.puntajes = defaultdict(int)
-        for sintoma, respuesta in self.respuestas.items():
-            if respuesta == 'si':
-                for enfermedad, sintomas in self.enfermedades.items():
-                    if sintoma in sintomas:
-                        self.puntajes[enfermedad] += 1
+        self.puntajes = self.inferencia(self.respuestas)
+        self.enfermedad_diagnostico = self.regla_diagnostico(self.puntajes)
 
-        if self.puntajes:
-            self.enfermedad_diagnostico = max(self.puntajes, key=self.puntajes.get)
-            sintomas_diagnostico = [sintoma.replace('_', ' ') for sintoma, respuesta in self.respuestas.items() if respuesta == 'si' and sintoma in self.enfermedades[self.enfermedad_diagnostico]]
-            sintomas_no_diagnostico = [sintoma.replace('_', ' ') for sintoma, respuesta in self.respuestas.items() if respuesta == 'si' and sintoma not in self.enfermedades[self.enfermedad_diagnostico]]
-            self.label.config(text=f"Diagnóstico: {self.enfermedad_diagnostico.replace('_', ' ')}")
-
-            # Mostrar los síntomas en el área de texto
-            self.text_sintomas.insert(tk.END, f"Diagnóstico: {self.enfermedad_diagnostico.replace('_', ' ')}\n")
-            self.text_sintomas.insert(tk.END, "Síntomas que ayudaron al diagnóstico:\n")
-            for sintoma in sintomas_diagnostico:
-                self.text_sintomas.insert(tk.END, f" - {sintoma}\n")
-            self.text_sintomas.insert(tk.END, "Otros síntomas marcados con 'Sí':\n")
-            for sintoma in sintomas_no_diagnostico:
-                self.text_sintomas.insert(tk.END, f" - {sintoma}\n")
+        if self.enfermedad_diagnostico:
+            sintomas_diagnostico = self.obtener_sintomas_diagnostico(self.enfermedad_diagnostico)
+            sintomas_no_diagnostico = self.obtener_sintomas_no_diagnostico(self.enfermedad_diagnostico)
+            self.mostrar_diagnostico(sintomas_diagnostico, sintomas_no_diagnostico)
         else:
             self.label.config(text="No se pudo determinar la enfermedad con los síntomas proporcionados.")
             self.text_sintomas.insert(tk.END, "No se pudo determinar la enfermedad con los síntomas proporcionados.\n")
@@ -100,6 +88,38 @@ class DiagnosticoEnfermedad:
         self.boton_diagnosticar.config(state=tk.DISABLED)
         self.boton_nuevo_diagnostico.pack()
         self.actualizar_grafico()
+
+    def inferencia(self, respuestas):
+        puntajes = defaultdict(int)
+        for sintoma, respuesta in respuestas.items():
+            if respuesta == 'si':
+                for enfermedad, sintomas in self.enfermedades.items():
+                    if sintoma in sintomas:
+                        puntajes[enfermedad] += 1
+        return puntajes
+
+    def regla_diagnostico(self, puntajes):
+        if puntajes:
+            return max(puntajes, key=puntajes.get)
+        return None
+
+    def obtener_sintomas_diagnostico(self, enfermedad_diagnostico):
+        return [sintoma.replace('_', ' ') for sintoma, respuesta in self.respuestas.items() if
+                respuesta == 'si' and sintoma in self.enfermedades[enfermedad_diagnostico]]
+
+    def obtener_sintomas_no_diagnostico(self, enfermedad_diagnostico):
+        return [sintoma.replace('_', ' ') for sintoma, respuesta in self.respuestas.items() if
+                respuesta == 'si' and sintoma not in self.enfermedades[enfermedad_diagnostico]]
+
+    def mostrar_diagnostico(self, sintomas_diagnostico, sintomas_no_diagnostico):
+        self.label.config(text=f"Diagnóstico: {self.enfermedad_diagnostico.replace('_', ' ')}")
+        self.text_sintomas.insert(tk.END, f"Diagnóstico: {self.enfermedad_diagnostico.replace('_', ' ')}\n")
+        self.text_sintomas.insert(tk.END, "Síntomas que ayudaron al diagnóstico:\n")
+        for sintoma in sintomas_diagnostico:
+            self.text_sintomas.insert(tk.END, f" - {sintoma}\n")
+        self.text_sintomas.insert(tk.END, "Otros síntomas marcados con 'Sí':\n")
+        for sintoma in sintomas_no_diagnostico:
+            self.text_sintomas.insert(tk.END, f" - {sintoma}\n")
 
     def nuevo_diagnostico(self):
         # Resetear variables y widgets
@@ -135,8 +155,8 @@ class DiagnosticoEnfermedad:
         self.ax.set_title('Puntaje de Diagnóstico por Enfermedad')
         self.canvas.draw()
 
+
 if __name__ == "__main__":
     root = tk.Tk()
     app = DiagnosticoEnfermedad(root)
     root.mainloop()
-
